@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AES Encryption — Interactive Visualizer</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#03060f;
+  --bg2:#070d1a;
+  --bg3:#0a1220;
+  --cyan:#00e5ff;
+  --magenta:#ff007a;
+  --gold:#ffd700;
+  --green:#39ff14;
+  --purple:#bf00ff;
+  --text:#e0e8ff;
+  --text2:#7a90b8;
+  --border:#1a2a4a;
+  --glow-c:rgba(0,229,255,0.3);
+  --glow-m:rgba(255,0,122,0.3);
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;overflow-x:hidden;cursor:none}
+
+/* CURSOR */
+#cursor{position:fixed;width:12px;height:12px;border-radius:50%;background:var(--cyan);pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:transform .1s,background .2s;mix-blend-mode:screen}
+#cursor-ring{position:fixed;width:36px;height:36px;border-radius:50%;border:1px solid var(--cyan);pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:left .08s,top .08s,width .2s,height .2s,border-color .2s;opacity:.6}
+body:hover #cursor{opacity:1}
+
+/* CANVAS BG */
+#bg-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;opacity:.6}
+
+/* LAYOUT */
+.container{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:0 2rem}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(20px);background:rgba(3,6,15,.8);border-bottom:1px solid var(--border)}
+.nav-logo{font-family:'Orbitron',monospace;font-size:.9rem;font-weight:700;color:var(--cyan);letter-spacing:.2em}
+.nav-logo span{color:var(--magenta)}
+.nav-links{display:flex;gap:2rem}
+.nav-links a{color:var(--text2);font-size:.8rem;letter-spacing:.1em;text-decoration:none;text-transform:uppercase;transition:color .2s}
+.nav-links a:hover{color:var(--cyan)}
+
+/* HERO */
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:6rem 2rem 4rem;position:relative}
+.hero-badge{font-family:'Space Mono',monospace;font-size:.7rem;letter-spacing:.3em;color:var(--magenta);text-transform:uppercase;margin-bottom:1.5rem;opacity:.8}
+.hero h1{font-family:'Orbitron',monospace;font-size:clamp(2.5rem,7vw,5rem);font-weight:900;line-height:1.1;background:linear-gradient(135deg,var(--cyan),var(--magenta));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:.5rem}
+.hero-sub{font-family:'Orbitron',monospace;font-size:clamp(.9rem,2vw,1.2rem);color:var(--text2);font-weight:400;margin-bottom:3rem;letter-spacing:.1em}
+.hero-matrix{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;width:280px;margin:2rem auto}
+.hero-cell{background:var(--bg3);border:1px solid var(--border);border-radius:8px;height:58px;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:1.1rem;font-weight:700;color:var(--cyan);transition:all .3s;animation:cellPulse 4s ease-in-out infinite}
+.hero-cell:nth-child(odd){animation-delay:.3s}
+.hero-cell:hover{transform:scale(1.1);background:rgba(0,229,255,.1);border-color:var(--cyan);box-shadow:0 0 20px var(--glow-c)}
+@keyframes cellPulse{0%,100%{opacity:.7;border-color:var(--border)}50%{opacity:1;border-color:rgba(0,229,255,.4)}}
+.scroll-cta{position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:.5rem;color:var(--text2);font-size:.75rem;letter-spacing:.2em;animation:bounce 2s ease-in-out infinite}
+@keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(6px)}}
+.scroll-arrow{width:20px;height:20px;border-right:2px solid var(--cyan);border-bottom:2px solid var(--cyan);transform:rotate(45deg);opacity:.6}
+
+/* SECTION HEADERS */
+.section-header{text-align:center;margin-bottom:4rem}
+.section-tag{font-family:'Space Mono',monospace;font-size:.7rem;letter-spacing:.3em;color:var(--magenta);text-transform:uppercase;margin-bottom:.75rem;display:block}
+.section-title{font-family:'Orbitron',monospace;font-size:clamp(1.6rem,4vw,2.5rem);font-weight:700;color:var(--text);line-height:1.2}
+.section-title span{color:var(--cyan)}
+.section-desc{color:var(--text2);font-size:1rem;max-width:600px;margin:.75rem auto 0;line-height:1.7}
+
+/* OVERVIEW CARDS */
+.overview{padding:6rem 0}
+.transform-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.5rem}
+.transform-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:2rem;cursor:pointer;transition:all .3s;position:relative;overflow:hidden}
+.transform-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:16px 16px 0 0;opacity:0;transition:opacity .3s}
+.transform-card:hover{transform:translateY(-6px);border-color:var(--cyan)}
+.transform-card:hover::before{opacity:1}
+.t-subbytes::before{background:linear-gradient(90deg,var(--cyan),var(--purple))}
+.t-shiftrows::before{background:linear-gradient(90deg,var(--magenta),var(--gold))}
+.t-mixcols::before{background:linear-gradient(90deg,var(--green),var(--cyan))}
+.t-addrk::before{background:linear-gradient(90deg,var(--gold),var(--magenta))}
+.transform-card:hover{box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.t-subbytes:hover{border-color:var(--purple);box-shadow:0 20px 60px rgba(191,0,255,.15)}
+.t-shiftrows:hover{border-color:var(--magenta);box-shadow:0 20px 60px var(--glow-m)}
+.t-mixcols:hover{border-color:var(--green);box-shadow:0 20px 60px rgba(57,255,20,.1)}
+.t-addrk:hover{border-color:var(--gold);box-shadow:0 20px 60px rgba(255,215,0,.1)}
+.card-number{font-family:'Orbitron',monospace;font-size:3rem;font-weight:900;opacity:.07;position:absolute;top:1rem;right:1.5rem;line-height:1}
+.card-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:1.25rem;font-size:1.5rem}
+.t-subbytes .card-icon{background:rgba(191,0,255,.15);border:1px solid rgba(191,0,255,.3)}
+.t-shiftrows .card-icon{background:rgba(255,0,122,.15);border:1px solid rgba(255,0,122,.3)}
+.t-mixcols .card-icon{background:rgba(57,255,20,.1);border:1px solid rgba(57,255,20,.3)}
+.t-addrk .card-icon{background:rgba(255,215,0,.1);border:1px solid rgba(255,215,0,.3)}
+.card-title{font-family:'Orbitron',monospace;font-size:1rem;font-weight:700;color:var(--text);margin-bottom:.5rem}
+.card-desc{font-size:.85rem;color:var(--text2);line-height:1.6}
+.card-keyword{display:inline-block;margin-top:.75rem;font-size:.7rem;letter-spacing:.15em;padding:.2em .7em;border-radius:20px;font-family:'Space Mono',monospace;font-weight:700;text-transform:uppercase}
+.t-subbytes .card-keyword{background:rgba(191,0,255,.15);color:var(--purple);border:1px solid rgba(191,0,255,.3)}
+.t-shiftrows .card-keyword{background:rgba(255,0,122,.15);color:var(--magenta);border:1px solid rgba(255,0,122,.3)}
+.t-mixcols .card-keyword{background:rgba(57,255,20,.1);color:var(--green);border:1px solid rgba(57,255,20,.3)}
+.t-addrk .card-keyword{background:rgba(255,215,0,.1);color:var(--gold);border:1px solid rgba(255,215,0,.3)}
+
+/* WALKTHROUGH */
+.walkthrough{padding:6rem 0;background:linear-gradient(180deg,transparent,rgba(0,229,255,.02),transparent)}
+.step-nav{display:flex;align-items:center;gap:1rem;margin-bottom:3rem;justify-content:center;flex-wrap:wrap}
+.step-btn{font-family:'Space Mono',monospace;font-size:.7rem;letter-spacing:.1em;padding:.5rem 1.2rem;border-radius:30px;border:1px solid var(--border);background:var(--bg2);color:var(--text2);cursor:pointer;transition:all .3s;text-transform:uppercase}
+.step-btn.active{background:rgba(0,229,255,.1);border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 15px var(--glow-c)}
+.step-btn:hover:not(.active){border-color:var(--text2);color:var(--text)}
+.step-connector{width:24px;height:1px;background:var(--border)}
+
+.step-panel{display:none;animation:fadeIn .4s ease}
+.step-panel.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.step-layout{display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:start}
+@media(max-width:768px){.step-layout{grid-template-columns:1fr}}
+.step-info h3{font-family:'Orbitron',monospace;font-size:1.3rem;font-weight:700;color:var(--text);margin-bottom:1rem}
+.step-info p{color:var(--text2);font-size:.9rem;line-height:1.8;margin-bottom:1rem}
+.step-info .formula{font-family:'Space Mono',monospace;font-size:.8rem;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;margin:.75rem 0;color:var(--cyan)}
+.step-info .formula .comment{color:var(--text2)}
+.step-visual{display:flex;flex-direction:column;gap:1.5rem;align-items:center}
+
+/* MATRIX DISPLAY */
+.matrix-label{font-family:'Space Mono',monospace;font-size:.7rem;color:var(--text2);text-align:center;letter-spacing:.15em;text-transform:uppercase;margin-bottom:.5rem}
+.matrix{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;position:relative}
+.matrix-4{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.m-cell{background:var(--bg3);border:1px solid var(--border);border-radius:8px;height:54px;width:64px;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:1rem;font-weight:700;transition:all .5s;position:relative;overflow:hidden}
+.m-cell::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 0,rgba(255,255,255,.05),transparent 70%)}
+.m-cell.highlight-c{border-color:var(--cyan);color:var(--cyan);background:rgba(0,229,255,.08);box-shadow:0 0 16px var(--glow-c)}
+.m-cell.highlight-m{border-color:var(--magenta);color:var(--magenta);background:rgba(255,0,122,.08);box-shadow:0 0 16px var(--glow-m)}
+.m-cell.highlight-g{border-color:var(--gold);color:var(--gold);background:rgba(255,215,0,.08);box-shadow:0 0 16px rgba(255,215,0,.2)}
+.m-cell.highlight-p{border-color:var(--purple);color:var(--purple);background:rgba(191,0,255,.08);box-shadow:0 0 16px rgba(191,0,255,.2)}
+.m-cell.highlight-gr{border-color:var(--green);color:var(--green);background:rgba(57,255,20,.08);box-shadow:0 0 16px rgba(57,255,20,.1)}
+.m-cell.dim{opacity:.35}
+.m-cell.changed{animation:cellChange .6s ease forwards}
+@keyframes cellChange{0%{transform:scale(1)}30%{transform:scale(1.15)}100%{transform:scale(1)}}
+
+.arrow-flow{display:flex;align-items:center;gap:.75rem;color:var(--text2);font-family:'Space Mono',monospace;font-size:.75rem;margin:.5rem 0}
+.arrow-flow .arrow{color:var(--cyan);font-size:1.2rem;animation:arrowPulse 1.5s ease-in-out infinite}
+@keyframes arrowPulse{0%,100%{opacity:.5;transform:translateX(0)}50%{opacity:1;transform:translateX(4px)}}
+.arrow-label{font-size:.65rem;color:var(--text2);letter-spacing:.1em;text-transform:uppercase}
+
+/* SBOX TABLE */
+.sbox-demo{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:1.25rem;width:100%}
+.sbox-row{display:flex;align-items:center;gap:.75rem;margin:.4rem 0;font-family:'Space Mono',monospace;font-size:.85rem}
+.sbox-in{color:var(--text2)}
+.sbox-arrow{color:var(--border)}
+.sbox-lookup{color:var(--magenta)}
+.sbox-out{font-weight:700}
+.sbox-note{font-size:.7rem;color:var(--text2);margin-left:auto;opacity:.7}
+
+/* SHIFT VISUAL */
+.shift-grid{display:flex;flex-direction:column;gap:8px;width:100%}
+.shift-row{display:flex;gap:6px;align-items:center}
+.shift-row-label{font-family:'Space Mono',monospace;font-size:.7rem;color:var(--text2);width:50px;text-align:right;flex-shrink:0}
+.shift-cell{width:60px;height:46px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:.9rem;font-weight:700;transition:all .5s}
+.shift-cell.shifted{border-color:var(--magenta);color:var(--magenta);background:rgba(255,0,122,.08);box-shadow:0 0 10px var(--glow-m)}
+.shift-indicator{font-family:'Space Mono',monospace;font-size:.65rem;color:var(--text2);width:60px;text-align:center;opacity:.6}
+
+/* MIX COLS */
+.mix-eq{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:1.25rem;font-family:'Space Mono',monospace;font-size:.8rem;width:100%}
+.mix-eq .eq-line{display:flex;align-items:center;gap:.5rem;margin:.4rem 0;flex-wrap:wrap}
+.eq-op{color:var(--text2)}
+.eq-num{color:var(--cyan)}
+.eq-val{color:var(--gold);font-weight:700}
+.eq-res{color:var(--green);font-weight:700;font-size:.95rem}
+.eq-step{color:var(--magenta)}
+
+/* XOR VISUAL */
+.xor-row{display:flex;gap:4px;align-items:center;margin:.3rem 0;flex-wrap:wrap}
+.xor-bit{width:24px;height:24px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:.7rem;font-weight:700;transition:all .4s}
+.xor-bit.b0{background:var(--bg3);border:1px solid var(--border);color:var(--text2)}
+.xor-bit.b1{background:rgba(0,229,255,.12);border:1px solid var(--cyan);color:var(--cyan)}
+.xor-bit.res0{background:var(--bg3);border:1px solid var(--border);color:var(--text2)}
+.xor-bit.res1{background:rgba(255,215,0,.12);border:1px solid var(--gold);color:var(--gold)}
+.xor-label{font-family:'Space Mono',monospace;font-size:.65rem;color:var(--text2);width:32px;text-align:right;flex-shrink:0}
+.xor-sep{width:100%;height:1px;background:var(--border);margin:.3rem 0}
+.xor-sym{color:var(--magenta);font-weight:700;margin:0 4px}
+
+/* SUMMARY FLOW */
+.summary{padding:5rem 0}
+.flow-chain{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:.5rem;margin-top:2rem}
+.flow-state{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:1rem 1.25rem;text-align:center}
+.flow-state-label{font-size:.65rem;color:var(--text2);font-family:'Space Mono',monospace;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem}
+.flow-state-val{font-family:'Space Mono',monospace;font-size:.85rem;font-weight:700;color:var(--cyan)}
+.flow-arrow{font-size:1.5rem;color:var(--border);margin:0 .25rem}
+.flow-op{font-family:'Space Mono',monospace;font-size:.65rem;color:var(--magenta);text-align:center;margin:0 .25rem}
+
+/* FOOTER */
+footer{padding:3rem 2rem;border-top:1px solid var(--border);text-align:center;color:var(--text2);font-size:.8rem}
+footer strong{color:var(--cyan);font-family:'Space Mono',monospace}
+
+/* GLOW DIVIDER */
+.glow-div{height:1px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);margin:0;opacity:.3}
+
+/* UTIL */
+.section{padding:6rem 0}
+.hex{font-family:'Space Mono',monospace}
+.tag-c{color:var(--cyan)}
+.tag-m{color:var(--magenta)}
+.tag-g{color:var(--gold)}
+.tag-gr{color:var(--green)}
+
+/* TOOLTIP */
+.tooltip-wrap{position:relative;display:inline-block}
+.tooltip{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;font-size:.75rem;color:var(--text);white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .2s;z-index:10;font-family:'Space Mono',monospace}
+.tooltip-wrap:hover .tooltip{opacity:1}
+
+/* INTERACTIVE CONTROLS */
+.ctrl-bar{display:flex;gap:1rem;justify-content:center;margin-top:2rem;flex-wrap:wrap}
+.btn{font-family:'Space Mono',monospace;font-size:.75rem;letter-spacing:.1em;padding:.6rem 1.4rem;border-radius:30px;border:1px solid var(--cyan);background:rgba(0,229,255,.08);color:var(--cyan);cursor:pointer;transition:all .2s;text-transform:uppercase}
+.btn:hover{background:rgba(0,229,255,.18);box-shadow:0 0 20px var(--glow-c);transform:scale(1.03)}
+.btn-m{border-color:var(--magenta);background:rgba(255,0,122,.08);color:var(--magenta)}
+.btn-m:hover{background:rgba(255,0,122,.18);box-shadow:0 0 20px var(--glow-m)}
+
+/* PULSE DOT */
+.pulse-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:.5rem;animation:pulseDot 1.5s ease-in-out infinite}
+@keyframes pulseDot{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:.5}}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--cyan)}
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<div id="cursor"></div>
+<div id="cursor-ring"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">AES<span>.</span>VISUAL</div>
+  <div class="nav-links">
+    <a href="#overview">Overview</a>
+    <a href="#walkthrough">Walkthrough</a>
+    <a href="#summary">Summary</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge"><span class="pulse-dot"></span>Advanced Encryption Standard — Interactive Guide</div>
+  <h1>AES Encryption</h1>
+  <p class="hero-sub">Four Transformations. Infinite Security.</p>
+
+  <div class="hero-matrix" id="heroMatrix">
+    <div class="m-cell highlight-c">19</div>
+    <div class="m-cell">3d</div>
+    <div class="m-cell">a4</div>
+    <div class="m-cell highlight-c">7e</div>
+    <div class="m-cell highlight-p">d4</div>
+    <div class="m-cell">27</div>
+    <div class="m-cell">49</div>
+    <div class="m-cell highlight-p">f3</div>
+    <div class="m-cell highlight-g">bd</div>
+    <div class="m-cell">95</div>
+    <div class="m-cell">27</div>
+    <div class="m-cell highlight-g">6e</div>
+    <div class="m-cell highlight-m">96</div>
+    <div class="m-cell">bd</div>
+    <div class="m-cell">8c</div>
+    <div class="m-cell highlight-m">67</div>
+  </div>
+
+  <div class="scroll-cta">
+    <span>explore</span>
+    <div class="scroll-arrow"></div>
+  </div>
+</section>
+
+<div class="glow-div"></div>
+
+<!-- OVERVIEW -->
+<section class="overview" id="overview">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">Core Mechanics</span>
+      <h2 class="section-title">The <span>Four</span> AES Transformations</h2>
+      <p class="section-desc">Each round of AES applies four mathematical operations to the 16-byte state matrix, providing both confusion and diffusion.</p>
+    </div>
+    <div class="transform-grid">
+      <div class="transform-card t-subbytes" onclick="goToStep('subbytes')">
+        <div class="card-number">01</div>
+        <div class="card-icon">⬡</div>
+        <div class="card-title">Substitute Bytes</div>
+        <p class="card-desc">Every byte is replaced via a non-linear S-box lookup table, derived from the multiplicative inverse in GF(2⁸). This creates maximum confusion.</p>
+        <span class="card-keyword">Confusion</span>
+      </div>
+      <div class="transform-card t-shiftrows" onclick="goToStep('shiftrows')">
+        <div class="card-number">02</div>
+        <div class="card-icon">⇄</div>
+        <div class="card-title">Shift Rows</div>
+        <p class="card-desc">Row r of the matrix is cyclically shifted left by r positions. This ensures bytes from different columns are spread across the state.</p>
+        <span class="card-keyword">Transposition</span>
+      </div>
+      <div class="transform-card t-mixcols" onclick="goToStep('mixcols')">
+        <div class="card-number">03</div>
+        <div class="card-icon">⊗</div>
+        <div class="card-title">Mix Columns</div>
+        <p class="card-desc">Each column is multiplied by a fixed matrix in GF(2⁸) finite field arithmetic, guaranteeing massive diffusion — the avalanche effect.</p>
+        <span class="card-keyword">Diffusion</span>
+      </div>
+      <div class="transform-card t-addrk" onclick="goToStep('addrk')">
+        <div class="card-number">04</div>
+        <div class="card-icon">⊕</div>
+        <div class="card-title">Add Round Key</div>
+        <p class="card-desc">The state matrix is XOR-ed with the 128-bit round key derived from your secret password, tying security directly to the key schedule.</p>
+        <span class="card-keyword">Key Mixing</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="glow-div"></div>
+
+<!-- WALKTHROUGH -->
+<section class="walkthrough section" id="walkthrough">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">Step-by-Step</span>
+      <h2 class="section-title">2×2 AES <span>Round</span> Walkthrough</h2>
+      <p class="section-desc">Follow a complete encryption round with real hexadecimal values. Click each step to explore the transformation in detail.</p>
+    </div>
+
+    <div class="step-nav">
+      <button class="step-btn active" id="btn-init" onclick="setStep('init')">Initial State</button>
+      <div class="step-connector"></div>
+      <button class="step-btn" id="btn-subbytes" onclick="setStep('subbytes')">SubBytes</button>
+      <div class="step-connector"></div>
+      <button class="step-btn" id="btn-shiftrows" onclick="setStep('shiftrows')">ShiftRows</button>
+      <div class="step-connector"></div>
+      <button class="step-btn" id="btn-mixcols" onclick="setStep('mixcols')">MixColumns</button>
+      <div class="step-connector"></div>
+      <button class="step-btn" id="btn-addrk" onclick="setStep('addrk')">AddRoundKey</button>
+    </div>
+
+    <!-- INIT -->
+    <div class="step-panel active" id="panel-init">
+      <div class="step-layout">
+        <div class="step-info">
+          <h3>Initial State Matrix</h3>
+          <p>The 16-byte plaintext is arranged into a 4×4 (or here, 2×2 for illustration) state matrix. Each cell holds one byte in hexadecimal.</p>
+          <p>Our example starts with the state <span class="hex tag-c">[19, 3d, a4, 7e]</span> alongside the round key <span class="hex tag-g">[2b, 28, ab, 09]</span> that will be applied at the end of this round.</p>
+          <div class="formula">
+            <span class="comment">// State matrix (column-major)</span><br>
+            State = [ 19  a4 ]<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ 3d  7e ]<br><br>
+            <span class="comment">// Round key for this round</span><br>
+            K = [ 2b  ab ]<br>
+            &nbsp;&nbsp;&nbsp;[ 28  09 ]
+          </div>
+          <p>The state will undergo <strong style="color:var(--cyan)">4 transformations</strong> before XOR-ing with the round key.</p>
+        </div>
+        <div class="step-visual">
+          <div>
+            <div class="matrix-label">State Matrix</div>
+            <div class="matrix" style="justify-items:center">
+              <div class="m-cell highlight-c">19</div>
+              <div class="m-cell">a4</div>
+              <div class="m-cell">3d</div>
+              <div class="m-cell">7e</div>
+            </div>
+          </div>
+          <div style="text-align:center;color:var(--text2);font-family:'Space Mono',monospace;font-size:.75rem">Round Key</div>
+          <div>
+            <div class="matrix-label">K</div>
+            <div class="matrix" style="justify-items:center">
+              <div class="m-cell highlight-g">2b</div>
+              <div class="m-cell">ab</div>
+              <div class="m-cell">28</div>
+              <div class="m-cell">09</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ctrl-bar">
+        <button class="btn" onclick="setStep('subbytes')">Next: SubBytes →</button>
+      </div>
+    </div>
+
+    <!-- SUBBYTES -->
+    <div class="step-panel" id="panel-subbytes">
+      <div class="step-layout">
+        <div class="step-info">
+          <h3>SubBytes — S-box Substitution</h3>
+          <p>Each byte is independently looked up in the AES S-box — a precomputed 256-entry table built from the multiplicative inverse in GF(2⁸) followed by an affine transformation.</p>
+          <p>This step provides <strong style="color:var(--purple)">Confusion</strong>: there is no linear relationship between input and output bytes, making the cipher resistant to algebraic attacks.</p>
+          <div class="formula">
+            <span class="comment">// AES S-box lookups</span><br>
+            19 → <span style="color:var(--magenta)">d4</span>&nbsp;&nbsp;(row 1, col 9)<br>
+            3d → <span style="color:var(--magenta)">27</span>&nbsp;&nbsp;(row 3, col d)<br>
+            a4 → <span style="color:var(--magenta)">49</span>&nbsp;&nbsp;(row a, col 4)<br>
+            7e → <span style="color:var(--magenta)">f3</span>&nbsp;&nbsp;(row 7, col e)
+          </div>
+          <p>An inverse S-box exists for decryption, designed so the transformation is its own inverse when applied twice.</p>
+        </div>
+        <div class="step-visual">
+          <div>
+            <div class="matrix-label">Before SubBytes</div>
+            <div class="matrix" style="justify-items:center">
+              <div class="m-cell">19</div>
+              <div class="m-cell">a4</div>
+              <div class="m-cell">3d</div>
+              <div class="m-cell">7e</div>
+            </div>
+          </div>
+          <div class="arrow-flow"><span class="arrow">→</span><span class="arrow-label">S-box lookup</span></div>
+          <div>
+            <div class="matrix-label">After SubBytes</div>
+            <div class="matrix" style="justify-items:center">
+              <div class="m-cell highlight-m">d4</div>
+              <div class="m-cell highlight-m">49</div>
+              <div class="m-cell highlight-m">27</div>
+              <div class="m-cell highlight-m">f3</div>
+            </div>
+          </div>
+          <div class="sbox-demo">
+            <div style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--text2);margin-bottom:.75rem;letter-spacing:.1em;text-transform:uppercase">S-box Lookups</div>
+            <div class="sbox-row"><span class="sbox-in">0x19</span><span class="sbox-arrow">──S──→</span><span class="sbox-out tag-m">0xd4</span><span class="sbox-note">⬡ non-linear</span></div>
+            <div class="sbox-row"><span class="sbox-in">0x3d</span><span class="sbox-arrow">──S──→</span><span class="sbox-out tag-m">0x27</span><span class="sbox-note">⬡ non-linear</span></div>
+            <div class="sbox-row"><span class="sbox-in">0xa4</span><span class="sbox-arrow">──S──→</span><span class="sbox-out tag-m">0x49</span><span class="sbox-note">⬡ non-linear</span></div>
+            <div class="sbox-row"><span class="sbox-in">0x7e</span><span class="sbox-arrow">──S──→</span><span class="sbox-out tag-m">0xf3</span><span class="sbox-note">⬡ non-linear</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="ctrl-bar">
+        <button class="btn btn-m" onclick="setStep('init')">← Back</button>
+        <button class="btn" onclick="setStep('shiftrows')">Next: ShiftRows →</button>
+      </div>
+    </div>
+
+    <!-- SHIFTROWS -->
+    <div class="step-panel" id="panel-shiftrows">
+      <div class="step-layout">
+        <div class="step-info">
+          <h3>ShiftRows — Cyclic Row Shift</h3>
+          <p>Each row r is cyclically shifted left by r bytes. In a full 4×4 AES matrix: row 0 stays, row 1 shifts by 1, row 2 by 2, row 3 by 3.</p>
+          <p>For our 2×2 example, row 1 shifts left by 1 position. This ensures each column of the output state contains bytes from every column of the input — providing <strong style="color:var(--magenta)">inter-column diffusion</strong>.</p>
+          <div class="formula">
+            <span class="comment">// 2×2 ShiftRows rule</span><br>
+            Row 0: [ d4, 49 ] → [ d4, 49 ] &nbsp;<span class="comment">(no shift)</span><br>
+            Row 1: [ 27, f3 ] → [ f3, 27 ] &nbsp;<span class="comment">(shift ←1)</span><br><br>
+            <span class="comment">// New state after ShiftRows</span><br>
+            [ d4, 49 ]<br>
+            [ f3, 27 ]
+          </div>
+          <p>Note how <span class="hex tag-m">f3</span> (originally column 1) now appears in column 0, mixing the columns for the subsequent MixColumns step.</p>
+        </div>
+        <div class="step-visual">
+          <div style="width:100%">
+            <div class="matrix-label">Before ShiftRows</div>
+            <div class="shift-grid">
+              <div style="display:flex;gap:6px;align-items:center">
+                <div class="shift-row-label">Row 0</div>
+                <div class="shift-cell" style="border-color:var(--border);color:var(--text)">d4</div>
+                <div class="shift-cell" style="border-color:var(--border);color:var(--text)">49</div>
+                <div style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--text2);margin-left:.5rem">shift 0</div>
+              </div>
+              <div style="display:flex;gap:6px;align-items:center">
+                <div class="shift-row-label">Row 1</div>
+                <div class="shift-cell" style="border-color:var(--magenta);color:var(--magenta);background:rgba(255,0,122,.08)">27</div>
+                <div class="shift-cell" style="border-color:var(--magenta);color:var(--magenta);background:rgba(255,0,122,.08)">f3</div>
+                <div style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--magenta);margin-left:.5rem">shift ←1</div>
+              </div>
+            </div>
+          </div>
+          <div class="arrow-flow"><span class="arrow">→</span><span class="arrow-label">Cyclic left shift</span></div>
+          <div style="width:100%">
+            <div class="matrix-label">After ShiftRows</div>
+            <div class="shift-grid">
+              <div style="display:flex;gap:6px;align-items:center">
+                <div class="shift-row-label">Row 0</div>
+                <div class="shift-cell">d4</div>
+                <div class="shift-cell">49</div>
+                <div style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--text2);margin-left:.5rem">unchanged</div>
+              </div>
+              <div style="display:flex;gap:6px;align-items:center">
+                <div class="shift-row-label">Row 1</div>
+                <div class="shift-cell shifted">f3</div>
+                <div class="shift-cell shifted">27</div>
+                <div style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--magenta);margin-left:.5rem">swapped!</div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="matrix-label">Result Matrix</div>
+            <div class="matrix" style="justify-items:center">
+              <div class="m-cell">d4</div>
+              <div class="m-cell">49</div>
+              <div class="m-cell highlight-m">f3</div>
+              <div class="m-cell highlight-m">27</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ctrl-bar">
+        <button class="btn btn-m" onclick="setStep('subbytes')">← Back</button>
+        <button class="btn" onclick="setStep('mixcols')">Next: MixColumns →</button>
+      </div>
+    </div>
+
+    <!-- MIXCOLS -->
+    <!-- <div class="step-panel" id="panel-mixcols">
+      <div class="step-layout">
+        <div class="step-info">
+          <h3>MixColumns — GF(2⁸) Multiplication</h3>
+          <p>Each column is treated as a polynomial over GF(2⁸) and multiplied by the fixed matrix M. All arithmetic is done modulo the AES irreducible polynomial <span class="hex tag-c">x⁸+x⁴+x³+x+1</span>.</p>
+          <div class="formula">
+            <span class="comment">// Fixed matrix M</span><br>
+            M = [ 02  03 ]<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;[ 01  01 ]<br><br>
+            <span class="comment">// Col 0: [d4, f3]ᵀ</span><br>
+            02·d4 ⊕ 03·f3 = b3 ⊕ 0e = <span style="color:var(--green)">bd</span><br>
+            01·d4 ⊕ 01·f3 = d4 ⊕ f3 = <span style="color:var(--green)">27</span><br><br>
+            <span class="comment">// Col 1: [49, 27]ᵀ</span><br>
+            02·49 ⊕ 03·27 = 92 ⊕ db = <span style="color:var(--green)">49</span>...<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;→ 4e ⊕ db = <span style="color:var(--green)">95</span><br>
+            01·49 ⊕ 01·27 = 49 ⊕ 27 = <span style="color:var(--green)">6e</span>
+          </div>
+          <p>The ×02 operation shifts bits left by 1. If the high bit was set, XOR with <span class="hex tag-c">0x1b</span> (the irreducible poly). ×03 = ×02 ⊕ ×01.</p>
+        </div>
+        <div class="step-visual">
+          <div>
+            <div class="matrix-label">Input (after ShiftRows)</div>
+            <div class="matrix" style="justify-items:center">
+              <div class="m-cell tag-c" style="border-color:rgba(0,229,255,.3)">d4</div>
+              <div class="m-cell tag-g" style="border-color:rgba(255,215,0,.3)">49</div>
+              <div class="m-cell tag-c" style="border-color:rgba(0,229,255,.3)">f3</div>
+              <div class="m-cell tag-g" style="border-color:rgba(255,215,0,.3)">27</div>
+            </div>
+            <div style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--text2);text-align:center;margin-top:.4rem">col 0: cyan · col 1: gold</div>
+          </div> -->
+
+          <div class="step-panel" id="panel-mixcols">
+  <div class="step-layout">
+    <div class="step-info">
+      <h3>MixColumns — GF(2⁸) Multiplication</h3>
+      <p>Each column is treated as a polynomial over GF(2⁸) and multiplied by the fixed matrix M. All arithmetic is done modulo the AES irreducible polynomial <span class="hex tag-c">x⁸+x⁴+x³+x+1</span>.</p>
+      
+      <!-- Matrix Multiplication Visual -->
+      <div style="margin: 1.5rem 0;">
+        <div style="display: flex; justify-content: center; align-items: center; gap: 1rem; flex-wrap: wrap;">
+          <!-- Matrix M -->
+          <div style="text-align: center">
+            <div style="font-size: 0.7rem; color: var(--text2); margin-bottom: 0.3rem">M</div>
+            <div style="display: grid; grid-template-columns: auto auto; gap: 0.25rem; background: rgba(6, 182, 212, 0.1); padding: 0.5rem; border-radius: 0.5rem">
+              <div class="m-cell" style="background: rgba(6,182,212,0.2); color:var(--cyan)">02</div>
+              <div class="m-cell" style="background: rgba(6,182,212,0.2); color:var(--cyan)">03</div>
+              <div class="m-cell" style="background: rgba(6,182,212,0.1); color:var(--cyan)">01</div>
+              <div class="m-cell" style="background: rgba(6,182,212,0.1); color:var(--cyan)">01</div>
+            </div>
+          </div>
+
+          <div style="font-size: 1.5rem; color: var(--text2)">×</div>
+
+          <!-- Input Matrix A -->
+          <div style="text-align: center">
+            <div style="font-size: 0.7rem; color: var(--text2); margin-bottom: 0.3rem">Input Matrix</div>
+            <div style="display: grid; grid-template-columns: auto auto; gap: 0.25rem; background: var(--surface); padding: 0.5rem; border-radius: 0.5rem">
+              <div class="m-cell tag-c" style="border-color: rgba(0,229,255,0.5)">d4</div>
+              <div class="m-cell tag-g" style="border-color: rgba(255,215,0,0.5)">49</div>
+              <div class="m-cell tag-c" style="border-color: rgba(0,229,255,0.5)">f3</div>
+              <div class="m-cell tag-g" style="border-color: rgba(255,215,0,0.5)">27</div>
+            </div>
+            <div style="font-family:'Space Mono',monospace; font-size:.6rem; color:var(--text2); margin-top:0.3rem">
+              col 0: <span style="color:var(--cyan)">cyan</span> · col 1: <span style="color:var(--gold)">gold</span>
+            </div>
+          </div>
+
+          <div style="font-size: 1.5rem; color: var(--text2)">=</div>
+
+          <!-- Result Matrix B -->
+          <div style="text-align: center">
+            <div style="font-size: 0.7rem; color: var(--text2); margin-bottom: 0.3rem">Result Matrix</div>
+            <div style="display: grid; grid-template-columns: auto auto; gap: 0.25rem; background: rgba(16, 185, 129, 0.1); padding: 0.5rem; border-radius: 0.5rem; border: 1px solid rgba(16,185,129,0.3)">
+              <div class="m-cell" style="background: rgba(16,185,129,0.2); color: var(--green); font-weight: bold">bd</div>
+              <div class="m-cell" style="background: rgba(245,158,11,0.2); color: var(--gold); font-weight: bold">95</div>
+              <div class="m-cell" style="background: rgba(16,185,129,0.2); color: var(--green); font-weight: bold">27</div>
+              <div class="m-cell" style="background: rgba(245,158,11,0.2); color: var(--gold); font-weight: bold">6e</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detailed Calculations -->
+      <div class="formula">
+        <span class="comment">// Matrix multiplication formula</span><br>
+        <span style="color:var(--cyan)">[ bd  95 ]</span> &nbsp;=&nbsp; 
+        <span style="color:var(--cyan)">[ 02  03 ]</span> &nbsp;×&nbsp; 
+        <span style="color:var(--cyan)">[ d4  49 ]</span><br>
+        <span style="color:var(--gold)">[ 27  6e ]</span> &nbsp;&nbsp;&nbsp; 
+        <span style="color:var(--gold)">[ 01  01 ]</span> &nbsp;&nbsp;&nbsp;&nbsp; 
+        <span style="color:var(--gold)">[ f3  27 ]</span><br><br>
+
+        <span class="comment">// Column 0 calculation [d4, f3]ᵀ</span><br>
+        Row 0: <span class="hex">02·d4 ⊕ 03·f3</span> = b3 ⊕ 0e = <span style="color:var(--green); font-weight:bold">bd</span><br>
+        Row 1: <span class="hex">01·d4 ⊕ 01·f3</span> = d4 ⊕ f3 = <span style="color:var(--green); font-weight:bold">27</span><br><br>
+
+        <span class="comment">// Column 1 calculation [49, 27]ᵀ</span><br>
+        Row 0: <span class="hex">02·49 ⊕ 03·27</span> = 92 ⊕ db = <span style="color:var(--gold); font-weight:bold">95</span><br>
+        Row 1: <span class="hex">01·49 ⊕ 01·27</span> = 49 ⊕ 27 = <span style="color:var(--gold); font-weight:bold">6e</span><br><br>
+
+        <span class="comment">// Multiplication rules</span><br>
+        <span class="hex">×02 = shift left 1 bit</span> → if high bit was 1, XOR with <span class="hex tag-c">0x1b</span><br>
+        <span class="hex">×03 = ×02 ⊕ ×01</span>
+      </div>
+    </div>
+
+    <div class="step-visual">
+      <div>
+        <div class="matrix-label">Input (after ShiftRows)</div>
+        <div class="matrix" style="justify-items:center">
+          <div class="m-cell tag-c" style="border-color:rgba(0,229,255,.5)">d4</div>
+          <div class="m-cell tag-g" style="border-color:rgba(255,215,0,.5)">49</div>
+          <div class="m-cell tag-c" style="border-color:rgba(0,229,255,.5)">f3</div>
+          <div class="m-cell tag-g" style="border-color:rgba(255,215,0,.5)">27</div>
+        </div>
+        <div style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--text2);text-align:center;margin-top:.4rem">
+          col 0: <span style="color:var(--cyan)">cyan</span> · col 1: <span style="color:var(--gold)">gold</span>
+        </div>
+        
+        <!-- Arrow down -->
+        <div style="text-align:center; margin: 1rem 0; font-size:1.2rem; color:var(--text2)">↓</div>
+        
+        <div class="matrix-label">Output (after MixColumns)</div>
+        <div class="matrix" style="justify-items:center; background: rgba(16,185,129,0.05); border: 1px solid rgba(16,185,129,0.2)">
+          <div class="m-cell" style="background:rgba(16,185,129,0.2); color:var(--green); font-weight:bold">bd</div>
+          <div class="m-cell" style="background:rgba(245,158,11,0.2); color:var(--gold); font-weight:bold">95</div>
+          <div class="m-cell" style="background:rgba(16,185,129,0.2); color:var(--green); font-weight:bold">27</div>
+          <div class="m-cell" style="background:rgba(245,158,11,0.2); color:var(--gold); font-weight:bold">6e</div>
+        </div>
+        <div style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--text2);text-align:center;margin-top:.4rem">
+          col 0: <span style="color:var(--green)">bd,27</span> · col 1: <span style="color:var(--gold)">95,6e</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .m-cell {
+    width: 55px;
+    height: 55px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Space Mono', monospace;
+    font-weight: 600;
+    font-size: 0.9rem;
+    background: var(--surface);
+    border-radius: 0.5rem;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+  }
+  
+  .tag-c {
+    border-left: 3px solid var(--cyan);
+  }
+  
+  .tag-g {
+    border-left: 3px solid var(--gold);
+  }
+  
+  .hex {
+    font-family: 'Space Mono', monospace;
+    background: rgba(148, 163, 184, 0.15);
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.25rem;
+    font-size: 0.8rem;
+  }
+  
+  .comment {
+    color: var(--text2);
+    font-size: 0.75rem;
+  }
+  
+  .formula {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    line-height: 1.6;
+    background: var(--surface);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    margin-top: 1rem;
+  }
+</style>
+
+          <!-- ------------------------------------------------------ -->
+           <!-- Step 2 — 02·d4 Calculation Box -->
+<div class="step-card">
+  <div class="step-header">
+    <span class="step-badge">02 multiply rule</span>
+    <span class="step-title">02 · d4</span>
+    <span class="step-sub">×02 = shift left 1 bit, if high bit=1 → XOR 0x1b</span>
+  </div>
+  <div class="op-row">
+    <span class="byte">d4</span>
+    <span class="op-symbol">=</span>
+    <span class="binary">1101 0100₂</span>
+  </div>
+  <div class="op-row">
+    <span class="op-symbol">⬅ shift left 1</span>
+    <span class="op-symbol">=</span>
+    <span class="binary">1010 1000₂</span>
+    <span class="op-symbol">=</span>
+    <span class="byte">a8</span>
+  </div>
+  <div class="op-row indent">
+    <span class="op-symbol">⚠ High bit of original d4 was <strong style="color:#06b6d4">1</strong> → XOR 0x1b</span>
+  </div>
+  <div class="op-row">
+    <span class="byte">a8</span>
+    <span class="op-symbol">⊕</span>
+    <span class="byte-gold">1b</span>
+    <span class="op-symbol">=</span>
+    <span class="byte-green">b3</span>
+  </div>
+  <div class="op-row result-row">
+    <span class="op-symbol">✅</span>
+    <span class="byte">02 · d4</span>
+    <span class="op-symbol">=</span>
+    <span class="result">b3</span>
+  </div>
+</div>
+
+<!-- Step 3 — 03·f3 Calculation Box -->
+<div class="step-card">
+  <div class="step-header">
+    <span class="step-badge">03 multiply rule</span>
+    <span class="step-title">03 · f3</span>
+    <span class="step-sub">×03 = ×02 ⊕ ×01</span>
+  </div>
+  
+  <!-- Part A: 02·f3 -->
+  <div class="op-row part-header">
+    <span class="op-symbol">①</span>
+    <span class="op-symbol">First, calculate <span class="byte-gold">02 · f3</span></span>
+  </div>
+  <div class="op-row">
+    <span class="byte-gold">f3</span>
+    <span class="op-symbol">=</span>
+    <span class="binary">1111 0011₂</span>
+  </div>
+  <div class="op-row">
+    <span class="op-symbol">shift left 1</span>
+    <span class="op-symbol">=</span>
+    <span class="binary">1110 0110₂</span>
+    <span class="op-symbol">=</span>
+    <span class="byte-gold">e6</span>
+  </div>
+  <div class="op-row indent">
+    <span class="op-symbol">⚠ High bit was 1 → XOR 0x1b</span>
+  </div>
+  <div class="op-row">
+    <span class="byte-gold">e6</span>
+    <span class="op-symbol">⊕</span>
+    <span class="byte">1b</span>
+    <span class="op-symbol">=</span>
+    <span class="byte-green">fd</span>
+  </div>
+  <div class="op-row indent">
+    <span class="op-symbol">So <span class="byte-gold">02 · f3 = fd</span></span>
+  </div>
+
+  <!-- Part B: 03·f3 = fd ⊕ f3 -->
+  <div class="op-row part-header">
+    <span class="op-symbol">②</span>
+    <span class="op-symbol">Now <span class="byte-gold">03·f3</span> = (02·f3) ⊕ original f3</span>
+  </div>
+  <div class="op-row">
+    <span class="byte-green">fd</span>
+    <span class="op-symbol">⊕</span>
+    <span class="byte-gold">f3</span>
+    <span class="op-symbol">=</span>
+  </div>
+  <div class="op-row indent">
+    <span class="binary">1111 1101</span>
+    <span class="op-symbol">⊕</span>
+    <span class="binary">1111 0011</span>
+    <span class="op-symbol">=</span>
+    <span class="binary"><strong>0000 1110₂</strong></span>
+  </div>
+  <div class="op-row">
+    <span class="op-symbol">=</span>
+    <span class="byte-purple">0e</span>
+  </div>
+  <div class="op-row result-row">
+    <span class="op-symbol">✅</span>
+    <span class="byte">03 · f3</span>
+    <span class="op-symbol">=</span>
+    <span class="result">0e</span>
+  </div>
+</div>
+
+<style>
+  /* Required CSS for the boxes */
+  :root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --text1: #f1f5f9;
+    --text2: #94a3b8;
+    --cyan: #06b6d4;
+    --gold: #f59e0b;
+    --green: #10b981;
+    --purple: #a855f7;
+  }
+
+  .step-card {
+    background: var(--surface);
+    border-radius: 1rem;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+  }
+
+  .step-header {
+    padding: 0.75rem 1rem;
+    background: rgba(6, 182, 212, 0.1);
+    border-bottom: 1px solid rgba(6, 182, 212, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .step-badge {
+    background: var(--cyan);
+    color: #0f172a;
+    font-weight: bold;
+    font-size: 0.7rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+  }
+
+  .step-title {
+    color: var(--text1);
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+
+  .step-sub {
+    color: var(--text2);
+    font-size: 0.7rem;
+    font-family: 'Courier New', monospace;
+    margin-left: auto;
+  }
+
+  .op-row {
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+  }
+
+  .op-row:last-child {
+    border-bottom: none;
+  }
+
+  .indent {
+    margin-left: 2rem;
+  }
+
+  .part-header {
+    background: rgba(245, 158, 11, 0.05);
+  }
+
+  .result-row {
+    background: rgba(16, 185, 129, 0.05);
+  }
+
+  .byte {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    background: rgba(6, 182, 212, 0.15);
+    padding: 0.15rem 0.45rem;
+    border-radius: 0.3rem;
+    color: var(--cyan);
+  }
+
+  .byte-gold {
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--gold);
+  }
+
+  .byte-green {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--green);
+  }
+
+  .byte-purple {
+    background: rgba(168, 85, 247, 0.15);
+    color: var(--purple);
+  }
+
+  .op-symbol {
+    color: var(--text2);
+    font-weight: 500;
+  }
+
+  .binary {
+    font-family: 'Courier New', monospace;
+    font-size: 0.7rem;
+    color: var(--text2);
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.25rem;
+  }
+
+  .result {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    background: var(--green);
+    color: #0f172a;
+    padding: 0.15rem 0.6rem;
+    border-radius: 0.4rem;
+  }
+</style>
+          <!-- ---------------------------------------------------- -->
+          
+          <div class="arrow-flow"><span class="arrow">→</span><span class="arrow-label">Matrix × Column</span></div>
+          <div>
+            <div class="matrix-label">After MixColumns</div>
+            <div class="matrix" style="justify-items:center">
+              <div class="m-cell highlight-gr">bd</div>
+              <div class="m-cell highlight-gr">95</div>
+              <div class="m-cell highlight-gr">27</div>
+              <div class="m-cell highlight-gr">6e</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ctrl-bar">
+        <button class="btn btn-m" onclick="setStep('shiftrows')">← Back</button>
+        <button class="btn" onclick="setStep('addrk')">Next: AddRoundKey →</button>
+      </div>
+    </div>
+
+    <!-- ADDROUNDKEY -->
+    <div class="step-panel" id="panel-addrk">
+      <div class="step-layout">
+        <div class="step-info">
+          <h3>AddRoundKey — XOR with Key</h3>
+          <p>The state is XOR-ed bit-by-bit with the 128-bit round key. This is the only step that directly incorporates the secret key, so security depends entirely on key secrecy.</p>
+          <p>XOR is its own inverse: applying the same key again recovers the original. This means encryption and decryption share the same operation.</p>
+          <div class="formula">
+            <span class="comment">// State ⊕ Round Key</span><br>
+            bd ⊕ 2b = <span style="color:var(--gold)">96</span><br>
+            95 ⊕ 28 = <span style="color:var(--gold)">bd</span><br>
+            27 ⊕ ab = <span style="color:var(--gold)">8c</span><br>
+            6e ⊕ 09 = <span style="color:var(--gold)">67</span><br><br>
+            <span class="comment">// Final state after this round</span><br>
+            [ <span style="color:var(--gold)">96</span>  <span style="color:var(--gold)">8c</span> ]<br>
+            [ <span style="color:var(--gold)">bd</span>  <span style="color:var(--gold)">67</span> ]
+          </div>
+        </div>
+        <div class="step-visual">
+          <div>
+            <div class="matrix-label">State (after MixColumns)</div>
+            <div class="matrix" style="justify-items:center">
+              <div class="m-cell tag-gr">bd</div>
+              <div class="m-cell tag-gr">95</div>
+              <div class="m-cell tag-gr">27</div>
+              <div class="m-cell tag-gr">6e</div>
+            </div>
+          </div>
+          <div style="text-align:center;font-size:1.5rem;color:var(--magenta);font-weight:700;letter-spacing:.1em">⊕</div>
+          <div>
+            <div class="matrix-label">Round Key K</div>
+            <div class="matrix" style="justify-items:center">
+              <div class="m-cell tag-c">2b</div>
+              <div class="m-cell tag-c">ab</div>
+              <div class="m-cell tag-c">28</div>
+              <div class="m-cell tag-c">09</div>
+            </div>
+          </div>
+          <div class="arrow-flow"><span class="arrow">→</span><span class="arrow-label">Bitwise XOR</span></div>
+          <div>
+            <div class="matrix-label">🔐 Final Round Output</div>
+            <div class="matrix" style="justify-items:center">
+              <div class="m-cell highlight-g">96</div>
+              <div class="m-cell highlight-g">8c</div>
+              <div class="m-cell highlight-g">bd</div>
+              <div class="m-cell highlight-g">67</div>
+            </div>
+          </div>
+          <div id="xor-demo" style="width:100%">
+            <div class="sbox-demo">
+              <div style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--text2);margin-bottom:.75rem;letter-spacing:.1em;text-transform:uppercase">XOR Bit Detail — bd ⊕ 2b = 96</div>
+              <div class="xor-row">
+                <div class="xor-label">bd</div>
+                <div class="xor-sym"></div>
+                <div class="xor-bit b1">1</div><div class="xor-bit b0">0</div><div class="xor-bit b1">1</div><div class="xor-bit b1">1</div>
+                <div class="xor-bit b1">1</div><div class="xor-bit b1">1</div><div class="xor-bit b0">0</div><div class="xor-bit b1">1</div>
+              </div>
+              <div class="xor-row">
+                <div class="xor-label">2b</div>
+                <div class="xor-sym">⊕</div>
+                <div class="xor-bit b0">0</div><div class="xor-bit b0">0</div><div class="xor-bit b1">1</div><div class="xor-bit b0">0</div>
+                <div class="xor-bit b1">1</div><div class="xor-bit b0">0</div><div class="xor-bit b1">1</div><div class="xor-bit b1">1</div>
+              </div>
+              <div class="xor-sep"></div>
+              <div class="xor-row">
+                <div class="xor-label" style="color:var(--gold)">96</div>
+                <div class="xor-sym" style="color:var(--gold)">=</div>
+                <div class="xor-bit res1">1</div><div class="xor-bit res0">0</div><div class="xor-bit res0">0</div><div class="xor-bit res1">1</div>
+                <div class="xor-bit res0">0</div><div class="xor-bit res1">1</div><div class="xor-bit res1">1</div><div class="xor-bit res0">0</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ctrl-bar">
+        <button class="btn btn-m" onclick="setStep('mixcols')">← Back</button>
+        <button class="btn" onclick="setStep('init');document.getElementById('summary').scrollIntoView({behavior:'smooth'})">View Summary →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="glow-div"></div>
+
+<!-- SUMMARY -->
+<section class="summary" id="summary">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">Complete Round</span>
+      <h2 class="section-title">Full <span>Transformation</span> Chain</h2>
+      <p class="section-desc">The complete AES round: four transformations applied in sequence to produce the ciphertext state.</p>
+    </div>
+    <div class="flow-chain">
+      <div class="flow-state">
+        <div class="flow-state-label">Initial</div>
+        <div class="flow-state-val">19 3d<br>a4 7e</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+        <div class="flow-arrow">→</div>
+        <div class="flow-op">SubBytes</div>
+      </div>
+      <div class="flow-state">
+        <div class="flow-state-label">After S-box</div>
+        <div class="flow-state-val" style="color:var(--purple)">d4 49<br>27 f3</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+        <div class="flow-arrow">→</div>
+        <div class="flow-op">ShiftRows</div>
+      </div>
+      <div class="flow-state">
+        <div class="flow-state-label">After Shift</div>
+        <div class="flow-state-val" style="color:var(--magenta)">d4 49<br>f3 27</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+        <div class="flow-arrow">→</div>
+        <div class="flow-op">MixCols</div>
+      </div>
+      <div class="flow-state">
+        <div class="flow-state-label">After Mix</div>
+        <div class="flow-state-val" style="color:var(--green)">bd 95<br>27 6e</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+        <div class="flow-arrow">→</div>
+        <div class="flow-op">AddKey ⊕</div>
+      </div>
+      <div class="flow-state" style="border-color:var(--gold);box-shadow:0 0 20px rgba(255,215,0,.15)">
+        <div class="flow-state-label" style="color:var(--gold)">🔐 Output</div>
+        <div class="flow-state-val" style="color:var(--gold)">96 8c<br>bd 67</div>
+      </div>
+    </div>
+
+    <div style="margin-top:4rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.5rem;text-align:center">
+        <div style="font-family:'Orbitron',monospace;font-size:2rem;font-weight:900;color:var(--purple);margin-bottom:.5rem">256</div>
+        <div style="font-size:.8rem;color:var(--text2)">S-box entries (non-linear lookups per full round)</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.5rem;text-align:center">
+        <div style="font-family:'Orbitron',monospace;font-size:2rem;font-weight:900;color:var(--magenta);margin-bottom:.5rem">10+</div>
+        <div style="font-size:.8rem;color:var(--text2)">Rounds per AES-128 encryption (14 for AES-256)</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.5rem;text-align:center">
+        <div style="font-family:'Orbitron',monospace;font-size:2rem;font-weight:900;color:var(--green);margin-bottom:.5rem">2¹²⁸</div>
+        <div style="font-size:.8rem;color:var(--text2)">Possible key combinations in AES-128 — brute force impossible</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.5rem;text-align:center">
+        <div style="font-family:'Orbitron',monospace;font-size:2rem;font-weight:900;color:var(--gold);margin-bottom:.5rem">1997</div>
+        <div style="font-size:.8rem;color:var(--text2)">Year Rijndael was submitted to NIST; adopted as AES in 2001</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div>Built with pure HTML/CSS/JS · <strong>AES Visual</strong> · Advanced Encryption Standard — Interactive Explainer</div>
+  <div style="margin-top:.5rem;font-size:.75rem">GF(2⁸) arithmetic · Irreducible polynomial x⁸+x⁴+x³+x+1 (0x11b)</div>
+</footer>
+
+<script>
+// CURSOR
+const cursor = document.getElementById('cursor');
+const ring = document.getElementById('cursor-ring');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{
+  mx=e.clientX; my=e.clientY;
+  cursor.style.left=mx+'px'; cursor.style.top=my+'px';
+});
+function animRing(){
+  rx+=(mx-rx)*.12; ry+=(my-ry)*.12;
+  ring.style.left=rx+'px'; ring.style.top=ry+'px';
+  requestAnimationFrame(animRing);
+}
+animRing();
+document.querySelectorAll('button,a,.transform-card,.m-cell,.step-btn').forEach(el=>{
+  el.addEventListener('mouseenter',()=>{
+    cursor.style.transform='translate(-50%,-50%) scale(2)';
+    ring.style.width='48px'; ring.style.height='48px';
+    cursor.style.background='var(--magenta)';
+    ring.style.borderColor='var(--magenta)';
+  });
+  el.addEventListener('mouseleave',()=>{
+    cursor.style.transform='translate(-50%,-50%) scale(1)';
+    ring.style.width='36px'; ring.style.height='36px';
+    cursor.style.background='var(--cyan)';
+    ring.style.borderColor='var(--cyan)';
+  });
+});
+
+// PARTICLE CANVAS
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+let W,H,particles=[];
+function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;initParticles();}
+window.addEventListener('resize',resize);
+
+const HEX_CHARS='0123456789abcdef';
+function rHex(){return HEX_CHARS[Math.floor(Math.random()*16)]+HEX_CHARS[Math.floor(Math.random()*16)];}
+
+class Particle{
+  constructor(){this.reset(true);}
+  reset(init){
+    this.x=Math.random()*W;
+    this.y=init?Math.random()*H:-20;
+    this.vy=0.3+Math.random()*0.8;
+    this.vx=(Math.random()-.5)*0.2;
+    this.alpha=0.06+Math.random()*0.25;
+    this.size=10+Math.random()*4;
+    this.char=rHex();
+    this.timer=0;
+    this.interval=40+Math.floor(Math.random()*80);
+    this.color=Math.random()<0.15?'#ff007a':Math.random()<0.1?'#ffd700':'#00e5ff';
+  }
+  update(){
+    this.y+=this.vy; this.x+=this.vx;
+    this.timer++;
+    if(this.timer%this.interval===0)this.char=rHex();
+    if(this.y>H+20)this.reset(false);
+  }
+  draw(){
+    ctx.globalAlpha=this.alpha;
+    ctx.fillStyle=this.color;
+    ctx.font=`${this.size}px 'Space Mono',monospace`;
+    ctx.fillText(this.char,this.x,this.y);
+  }
+}
+
+let mouseX=W/2,mouseY=H/2;
+document.addEventListener('mousemove',e=>{mouseX=e.clientX;mouseY=e.clientY;});
+
+function initParticles(){
+  particles=[];
+  const count=Math.floor(W*H/6000);
+  for(let i=0;i<count;i++) particles.push(new Particle());
+}
+
+function drawConnections(){
+  const nearby=particles.filter(p=>Math.abs(p.x-mouseX)<120&&Math.abs(p.y-mouseY)<120);
+  nearby.forEach(p=>{
+    const d=Math.hypot(p.x-mouseX,p.y-mouseY);
+    if(d<120){
+      ctx.globalAlpha=0.08*(1-d/120);
+      ctx.strokeStyle='#00e5ff';
+      ctx.lineWidth=0.5;
+      ctx.beginPath();
+      ctx.moveTo(mouseX,mouseY);
+      ctx.lineTo(p.x,p.y);
+      ctx.stroke();
+    }
+  });
+}
+
+function loop(){
+  ctx.clearRect(0,0,W,H);
+  ctx.globalAlpha=1;
+  drawConnections();
+  particles.forEach(p=>{p.update();p.draw();});
+  requestAnimationFrame(loop);
+}
+
+resize();
+loop();
+
+// STEP NAV
+const steps=['init','subbytes','shiftrows','mixcols','addrk'];
+function setStep(s){
+  steps.forEach(id=>{
+    document.getElementById('panel-'+id).classList.remove('active');
+    document.getElementById('btn-'+id).classList.remove('active');
+  });
+  document.getElementById('panel-'+s).classList.add('active');
+  document.getElementById('btn-'+s).classList.add('active');
+  document.getElementById('walkthrough').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function goToStep(s){
+  setStep(s);
+  setTimeout(()=>document.getElementById('walkthrough').scrollIntoView({behavior:'smooth'}),100);
+}
+
+// HERO MATRIX ANIMATION
+const heroCells=document.querySelectorAll('#heroMatrix .m-cell');
+const hexValues=['19','3d','a4','7e','d4','27','49','f3','bd','95','27','6e','96','bd','8c','67'];
+let hIdx=0;
+setInterval(()=>{
+  const cell=heroCells[Math.floor(Math.random()*heroCells.length)];
+  const old=cell.textContent;
+  cell.textContent=rHex();
+  cell.style.opacity='.4';
+  setTimeout(()=>{cell.textContent=old;cell.style.opacity='';},300);
+},800);
+
+// SCROLL REVEAL
+const observer=new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.style.opacity='1';
+      e.target.style.transform='translateY(0)';
+    }
+  });
+},{threshold:0.1});
+document.querySelectorAll('.transform-card,.flow-state,.sbox-demo,.mix-eq').forEach(el=>{
+  el.style.opacity='0';
+  el.style.transform='translateY(20px)';
+  el.style.transition='opacity .6s ease, transform .6s ease';
+  observer.observe(el);
+});
+</script>
+</body>
+</html>
